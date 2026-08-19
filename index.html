@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Soma Digital</title>
+<meta name="description" content="Soma Digital — daily spiritual discovery. Horizon design prototype.">
+<meta name="theme-color" content="#FCFCFD">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Soma">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap">
+<style>
+/* ============ HORIZON tokens — the only colours in the product ============ */
+:root{
+  --paper:#FCFCFD;
+  --recessed:#F2F3F5;
+  --ink:#101214;
+  --ink-muted:#62676E;
+  --hairline:#DFE1E5;
+  --petrol:#0E3B37;
+  --petrol-pressed:#0A2C29;
+  --signal:#1F6F5C;
+  --danger:#A32C22;
+  --video-bg:#07090D;
+
+  --header-h:56px;
+  --nav-h:64px;
+  --pad-x:16px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:17px;
+  font-weight:400;
+  line-height:1.65;
+  overflow-x:hidden;
+}
+body[data-screen="kingdom"]{background:var(--video-bg)}
+button{
+  font:inherit;
+  color:inherit;
+  background:none;
+  border:none;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+:focus-visible{outline:2px solid var(--petrol);outline-offset:2px}
+.on-dark :focus-visible,
+.on-dark:focus-visible{outline-color:#FFFFFF}
+svg{display:block}
+
+/* ============ type scale ============ */
+.display{font-size:48px;font-weight:300;letter-spacing:-0.04em;line-height:1.15}
+.headline{font-size:32px;font-weight:400;letter-spacing:-0.02em;line-height:1.2}
+.subhead{font-size:19px;font-weight:500;line-height:1.45}
+.body{font-size:17px;font-weight:400;line-height:1.65}
+.caption{
+  font-size:11px;font-weight:600;letter-spacing:0.12em;
+  text-transform:uppercase;line-height:1.5;
+}
+.muted{color:var(--ink-muted)}
+
+/* ============ screens ============ */
+.screen{display:none;min-height:100vh;min-height:100dvh}
+.screen.active{display:block}
+.screen:focus{outline:none}
+#screen-kingdom.active{
+  display:flex;flex-direction:column;
+  height:100vh;height:100dvh;overflow:hidden;
+}
+.has-nav{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px)}
+.pad{padding-inline:var(--pad-x)}
+
+/* ============ header — identical on every screen ============ */
+.app-header{
+  position:sticky;top:0;z-index:20;
+  height:calc(var(--header-h) + env(safe-area-inset-top));
+  padding-top:env(safe-area-inset-top);
+  background:var(--paper);
+  display:flex;align-items:center;justify-content:center;
+}
+.wordmark{
+  font-size:13px;font-weight:600;letter-spacing:0.18em;
+  text-transform:uppercase;color:var(--ink);
+}
+.avatar-btn{
+  position:absolute;right:var(--pad-x);
+  top:calc(env(safe-area-inset-top) + (var(--header-h) - 32px)/2);
+  width:32px;height:32px;border-radius:50%;
+  background:var(--recessed);
+  border:1px solid var(--hairline);
+  color:var(--ink);
+  font-size:11px;font-weight:600;letter-spacing:0.04em;
+  display:flex;align-items:center;justify-content:center;
+}
+.app-header--video{background:var(--video-bg)}
+.app-header--video .wordmark{color:#FFFFFF}
+.header-close{
+  position:absolute;right:6px;
+  top:calc(env(safe-area-inset-top) + (var(--header-h) - 44px)/2);
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  color:#FFFFFF;
+}
+
+/* ============ shared bits ============ */
+.hairline{border:none;border-top:1px solid var(--hairline)}
+.btn-primary{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;height:56px;
+  background:var(--petrol);color:#FFFFFF;
+  border-radius:4px;
+  font-size:14px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+}
+.btn-primary:active{background:var(--petrol-pressed)}
+.row-link{
+  display:flex;align-items:center;gap:12px;
+  width:100%;min-height:64px;
+  text-align:left;font-size:17px;color:var(--ink);
+}
+.row-link:active{background:var(--recessed)}
+.row-link .grow{flex:1}
+.chev{color:var(--petrol);flex:none}
+
+/* square avatar placeholders — initials only, never photos in this prototype */
+.sq-avatar{
+  background:var(--recessed);
+  border:1px solid var(--hairline);
+  color:var(--ink);
+  font-weight:600;
+  display:flex;align-items:center;justify-content:center;
+  flex:none;
+}
+
+/* ============ bottom navigation — flat, full width, hairline top ============ */
+.bottomnav{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:var(--paper);
+  border-top:1px solid var(--hairline);
+  padding-bottom:env(safe-area-inset-bottom);
+  display:flex;
+}
+.bottomnav[hidden]{display:none}
+.navitem{
+  flex:1;height:var(--nav-h);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;color:var(--ink-muted);
+}
+.navitem .bar{width:44px;height:2px;background:transparent}
+.navitem .navlabel{
+  font-size:12px;font-weight:500;letter-spacing:0.02em;
+  line-height:1;white-space:nowrap;
+}
+.navitem[aria-current="page"]{color:var(--ink)}
+.navitem[aria-current="page"] .bar{background:var(--petrol)}
+
+/* ============ HOME ============ */
+.home-lede{padding-top:56px}
+.home-title{margin-top:12px;max-width:10em}
+.home-meta{margin-top:16px;font-size:17px}
+.home-cta{margin-top:56px}
+.home-cta-wrap{margin-top:0}
+.readouts{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:32px 0;
+}
+.readout{text-align:center}
+.readout-num{font-size:32px;font-weight:400;letter-spacing:-0.02em;line-height:1.2}
+.readout .caption{white-space:nowrap;margin-top:6px;display:block}
+.home-hairline{margin-top:40px}
+
+/* ============ DEVOTIONAL DETAIL ============ */
+.detail-hero{
+  position:relative;
+  margin-top:calc(-1 * (var(--header-h) + env(safe-area-inset-top)));
+  height:45vh;height:45svh;
+  background:var(--recessed);
+}
+.detail-hero .ph-glyph{
+  position:absolute;inset:0;margin:auto;
+  width:48px;height:48px;color:var(--ink-muted);
+}
+.detail-hero .scrim{
+  position:absolute;left:0;right:0;bottom:0;height:36%;
+  /* the single permitted gradient: a dark scrim under text on photography */
+  background:linear-gradient(to bottom, rgba(7,9,13,0), rgba(7,9,13,0.82));
+  display:flex;align-items:flex-end;
+  padding:0 var(--pad-x) 20px;
+}
+.detail-hero h1{color:#FFFFFF}
+.detail-toolbar{
+  position:absolute;left:6px;right:6px;
+  top:calc(var(--header-h) + env(safe-area-inset-top) + 4px);
+  display:flex;align-items:center;
+}
+.icon-btn{
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ink);
+}
+.detail-toolbar .grow{flex:1}
+.scripture{
+  position:relative;
+  margin-top:40px;
+  padding-left:18px;
+}
+.scripture::before{
+  content:"";position:absolute;left:0;top:4px;bottom:4px;
+  width:2px;background:var(--petrol);
+}
+.scripture-ref{margin-top:16px;padding-left:18px}
+.devo-section{padding:36px 0}
+.devo-section .body{margin-top:14px}
+.detail-cta{margin-top:8px}
+.discuss-hairline{margin-top:40px}
+.row-link .muted-label{color:var(--ink-muted)}
+
+/* ============ KINGDOM SCROLLING ============ */
+.ks-scroll{
+  flex:1;min-height:0;
+  overflow-y:auto;
+  scroll-snap-type:y mandatory;
+  scrollbar-width:none;
+  /* lets the last unit reach the top so it can snap flush */
+  padding-bottom:48px;
+}
+.ks-scroll::-webkit-scrollbar{display:none}
+.ks-unit{
+  /* container has 48px bottom padding, so 100% here is viewport minus 48px:
+     the next card's top edge always peeks, and the last unit can snap flush */
+  height:100%;
+  scroll-snap-align:start;
+  display:flex;flex-direction:column;
+  padding:12px var(--pad-x) 0;
+}
+.ks-card{
+  flex:1;min-height:0;
+  aspect-ratio:9/16;
+  height:100%;width:auto;max-width:100%;
+  margin:0 auto;
+  background:var(--recessed);
+  border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ink-muted);
+}
+.ks-meta{
+  flex:none;
+  display:flex;align-items:flex-end;gap:16px;
+  padding:14px 4px 10px;
+}
+.ks-info{flex:1;min-width:0}
+.ks-channel{color:rgba(255,255,255,0.7)}
+.ks-title{color:#FFFFFF;margin-top:6px}
+.ks-actions{display:flex;gap:8px;flex:none}
+.ks-action{
+  width:44px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  color:#FFFFFF;padding:4px 0;
+}
+.ks-count{
+  font-size:11px;font-weight:600;letter-spacing:0.08em;
+  color:rgba(255,255,255,0.7);line-height:1;
+}
+
+/* ============ CONNECT ============ */
+.screen-title-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:24px;
+}
+.plus-btn{
+  width:44px;height:44px;margin-right:-10px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--petrol);
+}
+.filters{
+  display:flex;gap:32px;
+  margin-top:20px;
+  margin-right:calc(-1 * var(--pad-x));
+  overflow-x:auto;
+  scrollbar-width:none;
+  white-space:nowrap;
+}
+.filters::-webkit-scrollbar{display:none}
+.filter{
+  flex:none;
+  font-size:16px;font-weight:500;
+  color:var(--ink-muted);
+  padding:6px 0 10px;
+  border-bottom:2px solid transparent;
+}
+.filter[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--petrol)}
+.filter:last-child{margin-right:var(--pad-x)}
+.thread{padding:20px 0;text-align:left;width:100%}
+.thread-top{display:flex;align-items:center;gap:10px}
+.thread .sq-avatar{width:24px;height:24px;font-size:9px}
+.thread-author{color:var(--ink-muted)}
+.thread-mod{color:var(--petrol)}
+.thread-time{margin-left:auto;color:var(--ink-muted)}
+.thread-pinned{display:block;margin-top:14px;color:var(--ink-muted)}
+.thread-title{margin-top:8px}
+.thread-preview{margin-top:6px;color:var(--ink-muted)}
+.thread-replies{display:block;margin-top:10px;color:var(--ink-muted)}
+
+/* ============ PRAY ============ */
+.pray-summary{
+  display:flex;align-items:baseline;gap:8px;
+  padding:20px 0 24px;
+  white-space:nowrap;
+}
+.pray-summary .headline{flex:none}
+.pray-summary .label{color:var(--ink-muted);flex:none}
+.pray-summary .right{margin-left:auto;color:var(--ink-muted);flex:none}
+.request{padding:24px 0}
+.request-top{display:flex;align-items:center;gap:12px}
+.request .sq-avatar{width:32px;height:32px;font-size:11px}
+.request-name{font-size:19px;font-weight:500;line-height:1.2}
+.answered-flag{color:var(--signal)}
+.request-time{margin-left:auto;color:var(--ink-muted)}
+.request-body{margin-top:12px}
+.pray-btn{
+  margin-top:16px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;height:44px;
+  border:1px solid var(--petrol);border-radius:4px;
+  color:var(--petrol);
+  font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+}
+.pray-btn[aria-pressed="true"]{
+  background:var(--petrol);border-color:var(--petrol);color:#FFFFFF;
+}
+.pray-btn[aria-pressed="true"]:active{background:var(--petrol-pressed)}
+.pray-quote{
+  margin-top:14px;
+  padding-left:14px;
+  border-left:2px solid var(--hairline);
+  color:var(--ink-muted);
+}
+
+/* ============ SETTINGS ============ */
+.settings-titlebar{
+  display:flex;align-items:center;gap:4px;
+  padding-top:16px;
+}
+.settings-titlebar .icon-btn{margin-left:-10px}
+.acct{
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:36px 0 32px;
+}
+.acct-avatar{
+  width:72px;height:72px;border-radius:50%;
+  background:var(--recessed);border:1px solid var(--hairline);
+  color:var(--ink);font-size:24px;font-weight:500;
+  display:flex;align-items:center;justify-content:center;
+}
+.acct-name{margin-top:18px}
+.acct-mail{margin-top:6px;color:var(--ink-muted)}
+.acct-plan{margin-top:14px;color:var(--petrol)}
+.group-caption{display:block;color:var(--ink-muted);padding:28px 0 6px}
+.setrow{
+  display:flex;align-items:center;gap:12px;
+  width:100%;min-height:56px;text-align:left;
+  font-size:17px;color:var(--ink);
+}
+.setrow:active{background:var(--recessed)}
+.setrow .grow{flex:1}
+.setrow .value{color:var(--ink-muted)}
+.switch{
+  width:48px;height:28px;flex:none;
+  background:var(--recessed);
+  border:1px solid var(--hairline);
+  position:relative;
+  transition:background 0.12s ease;
+}
+.switch .knob{
+  position:absolute;top:3px;left:3px;
+  width:20px;height:20px;
+  background:var(--paper);
+  border:1px solid var(--hairline);
+  transition:transform 0.12s ease;
+}
+.switch[aria-checked="true"]{background:var(--petrol);border-color:var(--petrol)}
+.switch[aria-checked="true"] .knob{transform:translateX(20px);border-color:var(--petrol)}
+.signout{
+  display:block;width:100%;
+  margin-top:56px;
+  min-height:56px;
+  color:var(--danger);
+  font-size:17px;font-weight:500;
+  text-align:center;
+}
+.signout:active{background:var(--recessed)}
+.settings-bottom-pad{height:calc(env(safe-area-inset-bottom) + 24px)}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+}
+</style>
+</head>
+<body data-screen="home">
+<main id="app">
+
+<!-- ================= HOME ================= -->
+<section class="screen has-nav active" id="screen-home" aria-label="Home" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
+  </header>
+  <div class="pad">
+    <div class="home-lede">
+      <span class="caption muted">Today, 19 August</span>
+      <h1 class="display home-title">The peace that guards your heart</h1>
+      <p class="muted home-meta">Philippians 4:6-7 · 8 minutes</p>
+    </div>
+    <div class="home-cta">
+      <button class="btn-primary" data-open="detail">Begin reading</button>
+    </div>
+    <hr class="hairline home-hairline">
+    <div class="readouts">
+      <div class="readout">
+        <div class="readout-num" data-bind="streak">6/7</div>
+        <span class="caption muted">Days this week</span>
+      </div>
+      <div class="readout">
+        <div class="readout-num" data-bind="prayersWeek">2,347</div>
+        <span class="caption muted">Prayers</span>
+      </div>
+      <div class="readout">
+        <div class="readout-num" data-bind="invites">4</div>
+        <span class="caption muted">Invites</span>
+      </div>
+    </div>
+    <hr class="hairline">
+    <button class="row-link" data-open="kingdom">
+      <span class="grow">Watch today's short · Desiring God</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="row-link" data-open="connect">
+      <span class="grow">Ruth started a conversation · 12 replies</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+  </div>
+</section>
+
+<!-- ================= DEVOTIONAL DETAIL ================= -->
+<section class="screen has-nav" id="screen-detail" aria-label="Devotional detail" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
+  </header>
+  <div class="detail-hero" role="img" aria-label="Devotional artwork placeholder">
+    <svg class="ph-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-11 11"/></svg>
+    <div class="scrim">
+      <h1 class="headline">The peace that guards your heart</h1>
+    </div>
+    <div class="detail-toolbar">
+      <button class="icon-btn" data-back aria-label="Back">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <span class="grow"></span>
+      <button class="icon-btn" aria-label="Share this devotional">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v8h14v-8"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Bookmark this devotional" aria-pressed="false" data-bookmark>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="pad">
+    <blockquote class="scripture subhead">"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus."</blockquote>
+    <span class="caption muted scripture-ref">Philippians 4:6-7</span>
+
+    <div class="devo-section">
+      <span class="caption muted">Reflection</span>
+      <p class="body">The apostle Paul, writing from a prison cell, offers a radical alternative to anxiety. He doesn't suggest that difficult circumstances aren't real or painful, but he points to a source of peace that supersedes them. This peace isn't just an emotion; it's an active guard, stationed around our hearts and minds to protect us from the assault of worry.</p>
+    </div>
+    <hr class="hairline">
+    <div class="devo-section">
+      <span class="caption muted">Application</span>
+      <p class="body">Identify one area of your life currently dominated by anxiety. Take a moment to explicitly present this specific situation to God. What would it look like to approach this concern with thanksgiving, even before you see a resolution?</p>
+    </div>
+    <hr class="hairline">
+    <div class="devo-section">
+      <span class="caption muted">Prayer</span>
+      <p class="body">"Father, I surrender my worries to You. Thank you for Your constant presence, even in the midst of uncertainty. Please guard my heart and mind with Your profound peace today. Amen."</p>
+    </div>
+
+    <div class="detail-cta">
+      <button class="btn-primary" data-markread aria-pressed="false">Mark as read</button>
+    </div>
+    <hr class="hairline discuss-hairline">
+    <button class="row-link" data-open="connect">
+      <span class="grow muted-label"><span data-bind="discussing">9</span> people are discussing this today</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- ================= KINGDOM SCROLLING ================= -->
+<section class="screen" id="screen-kingdom" aria-label="Kingdom Scrolling" tabindex="-1">
+  <header class="app-header app-header--video on-dark">
+    <span class="wordmark">Soma Digital</span>
+    <button class="header-close" data-back aria-label="Close Kingdom Scrolling">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </header>
+  <div class="ks-scroll on-dark">
+    <div class="ks-unit">
+      <div class="ks-card" role="img" aria-label="Video placeholder: Instead of a Sign, God Might Do This">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <div class="ks-meta">
+        <div class="ks-info">
+          <span class="caption ks-channel">Life.Church</span>
+          <h2 class="subhead ks-title">Instead of a Sign, God Might Do This</h2>
+        </div>
+        <div class="ks-actions">
+          <button class="ks-action" aria-label="Like, 24.5K">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+            <span class="ks-count">24.5K</span>
+          </button>
+          <button class="ks-action" aria-label="Comments, 1.2K">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H4l2.3-2.9A8 8 0 1 1 21 12z"/></svg>
+            <span class="ks-count">1.2K</span>
+          </button>
+          <button class="ks-action" aria-label="Share, 486">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v8h14v-8"/></svg>
+            <span class="ks-count">486</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="ks-unit">
+      <div class="ks-card" role="img" aria-label="Video placeholder: Finding Joy In Every Moment">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>
+      </div>
+      <div class="ks-meta">
+        <div class="ks-info">
+          <span class="caption ks-channel">Desiring God</span>
+          <h2 class="subhead ks-title">Finding Joy In Every Moment</h2>
+        </div>
+        <div class="ks-actions">
+          <button class="ks-action" aria-label="Like, 18.2K">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+            <span class="ks-count">18.2K</span>
+          </button>
+          <button class="ks-action" aria-label="Comments, 964">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H4l2.3-2.9A8 8 0 1 1 21 12z"/></svg>
+            <span class="ks-count">964</span>
+          </button>
+          <button class="ks-action" aria-label="Share, 312">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v8h14v-8"/></svg>
+            <span class="ks-count">312</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONNECT ================= -->
+<section class="screen has-nav" id="screen-connect" aria-label="Connect" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
+  </header>
+  <div class="pad">
+    <div class="screen-title-row">
+      <h1 class="headline">Connect</h1>
+      <button class="plus-btn" aria-label="Start a conversation">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="filters" role="group" aria-label="Filter conversations">
+      <button class="filter" aria-pressed="false">Daily life</button>
+      <button class="filter" aria-pressed="true">Scripture</button>
+      <button class="filter" aria-pressed="false">Doubt</button>
+      <button class="filter" aria-pressed="false">Prayer</button>
+    </div>
+
+    <article class="thread">
+      <div class="thread-top">
+        <span class="sq-avatar" aria-hidden="true">SJ</span>
+        <span class="caption thread-author">Sarah J.</span>
+        <span class="caption thread-time">2 hours ago</span>
+      </div>
+      <span class="caption thread-pinned">Pinned</span>
+      <h2 class="subhead thread-title">Understanding the Sermon on the Mount</h2>
+      <p class="body thread-preview">How does Matthew 5-7 work at the office?</p>
+      <span class="caption thread-replies">42 replies</span>
+    </article>
+    <hr class="hairline">
+    <article class="thread">
+      <div class="thread-top">
+        <span class="sq-avatar" aria-hidden="true">CT</span>
+        <span class="caption thread-author">Community Team</span>
+        <span class="caption thread-mod">Moderator</span>
+        <span class="caption thread-time">5 hours ago</span>
+      </div>
+      <h2 class="subhead thread-title">Weekly reading plan discussion</h2>
+      <p class="body thread-preview">Share your reflections on Romans 8 here.</p>
+      <span class="caption thread-replies">128 replies</span>
+    </article>
+    <hr class="hairline">
+    <article class="thread">
+      <div class="thread-top">
+        <span class="sq-avatar" aria-hidden="true">MT</span>
+        <span class="caption thread-author">Marcus T.</span>
+        <span class="caption thread-time">Yesterday</span>
+      </div>
+      <h2 class="subhead thread-title">Context for Psalms of Lament</h2>
+      <p class="body thread-preview">Looking for context on Psalms of lament.</p>
+      <span class="caption thread-replies">15 replies</span>
+    </article>
+    <hr class="hairline">
+    <article class="thread">
+      <div class="thread-top">
+        <span class="sq-avatar" aria-hidden="true">ER</span>
+        <span class="caption thread-author">Elena R.</span>
+        <span class="caption thread-time">2 days ago</span>
+      </div>
+      <h2 class="subhead thread-title">Reconciling science and creation narratives</h2>
+      <p class="body thread-preview">Books on reading Genesis in context?</p>
+      <span class="caption thread-replies">56 replies</span>
+    </article>
+    <hr class="hairline">
+    <article class="thread">
+      <div class="thread-top">
+        <span class="sq-avatar" aria-hidden="true">DK</span>
+        <span class="caption thread-author">David K.</span>
+        <span class="caption thread-time">5 days ago</span>
+      </div>
+      <h2 class="subhead thread-title">Translations: ESV vs NRSV for study</h2>
+      <p class="body thread-preview">What separates the ESV from the NRSV?</p>
+      <span class="caption thread-replies">89 replies</span>
+    </article>
+  </div>
+</section>
+
+<!-- ================= PRAY ================= -->
+<section class="screen has-nav" id="screen-pray" aria-label="Pray" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
+  </header>
+  <div class="pad">
+    <div class="screen-title-row">
+      <h1 class="headline">Pray</h1>
+      <button class="plus-btn" aria-label="Add a prayer request">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="pray-summary">
+      <span class="headline" data-bind="prayersWeek">2,347</span>
+      <span class="label">prayers this week</span>
+      <span class="right" data-bind="todayProgress">3 of 5 today</span>
+    </div>
+    <hr class="hairline">
+
+    <article class="request">
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">SJ</span>
+        <span class="request-name">Sarah J.</span>
+        <span class="caption request-time">2h ago</span>
+      </div>
+      <p class="body request-body">My mother is going in for surgery tomorrow morning. Praying for steady hands for the surgeons and peace for our family during the wait.</p>
+      <button class="pray-btn" data-request="sarah" aria-pressed="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+        <span data-label>I'm praying</span>
+        <span aria-hidden="true">·</span>
+        <span><span data-count>14</span> praying</span>
+      </button>
+    </article>
+    <hr class="hairline">
+    <article class="request">
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">DM</span>
+        <span class="request-name">David M.</span>
+        <span class="caption request-time">5h ago</span>
+      </div>
+      <p class="body request-body">Navigating a major career transition right now. Seeking clarity and wisdom for the next steps as I consider a few different paths.</p>
+      <button class="pray-btn" data-request="david" aria-pressed="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+        <span data-label>Praying</span>
+        <span aria-hidden="true">·</span>
+        <span><span data-count>8</span> praying</span>
+      </button>
+    </article>
+    <hr class="hairline">
+    <article class="request">
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">GO</span>
+        <span class="request-name">Grace O.</span>
+        <span class="caption request-time">8h ago</span>
+      </div>
+      <p class="body request-body">Starting a new semester far from home. Asking for good friendships and the courage to visit a local church this Sunday.</p>
+      <button class="pray-btn" data-request="grace" aria-pressed="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+        <span data-label>I'm praying</span>
+        <span aria-hidden="true">·</span>
+        <span><span data-count>5</span> praying</span>
+      </button>
+    </article>
+    <hr class="hairline">
+    <article class="request">
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">MT</span>
+        <span class="request-name">Marcus T.</span>
+        <span class="caption answered-flag">Answered</span>
+        <span class="caption request-time">Yesterday</span>
+      </div>
+      <p class="body request-body">The biopsy came back completely clear!</p>
+      <p class="body pray-quote">"Waiting on test results this week, feeling incredibly anxious."</p>
+    </article>
+  </div>
+</section>
+
+<!-- ================= SETTINGS ================= -->
+<section class="screen" id="screen-settings" aria-label="Settings" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+  </header>
+  <div class="pad">
+    <div class="settings-titlebar">
+      <button class="icon-btn" data-back aria-label="Back">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <h1 class="display">Settings</h1>
+    </div>
+
+    <div class="acct">
+      <span class="acct-avatar" aria-hidden="true">AY</span>
+      <div class="headline acct-name">Acar Yildiz</div>
+      <div class="acct-mail">acar.yildiz@example.com</div>
+      <span class="caption acct-plan">Free plan</span>
+    </div>
+    <hr class="hairline">
+
+    <span class="caption group-caption">Account</span>
+    <button class="setrow">
+      <span class="grow">Name</span>
+      <span class="value">Acar Yildiz</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="setrow">
+      <span class="grow">Email</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="setrow">
+      <span class="grow">Plan</span>
+      <span class="value">Free</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="setrow">
+      <span class="grow">Profile photo</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+
+    <span class="caption group-caption">Notifications</span>
+    <div class="setrow">
+      <span class="grow" id="lbl-devo">Daily devotional reminder</span>
+      <button class="switch" role="switch" aria-checked="true" aria-labelledby="lbl-devo"><span class="knob"></span></button>
+    </div>
+    <hr class="hairline">
+    <div class="setrow">
+      <span class="grow" id="lbl-replies">Prayer replies</span>
+      <button class="switch" role="switch" aria-checked="true" aria-labelledby="lbl-replies"><span class="knob"></span></button>
+    </div>
+    <hr class="hairline">
+    <div class="setrow">
+      <span class="grow" id="lbl-weekly">Weekly summary</span>
+      <button class="switch" role="switch" aria-checked="false" aria-labelledby="lbl-weekly"><span class="knob"></span></button>
+    </div>
+    <hr class="hairline">
+
+    <span class="caption group-caption">App</span>
+    <button class="setrow">
+      <span class="grow">Appearance</span>
+      <span class="value">System</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="setrow">
+      <span class="grow">Language</span>
+      <span class="value">English</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="setrow">
+      <span class="grow">Followed topics</span>
+      <span class="value">3 topics</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="setrow">
+      <span class="grow">Privacy</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+    <button class="setrow">
+      <span class="grow">About Soma Digital</span>
+      <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <hr class="hairline">
+
+    <button class="signout">Sign out</button>
+    <div class="settings-bottom-pad"></div>
+  </div>
+</section>
+
+</main>
+
+<!-- one bottom navigation, identical everywhere it appears -->
+<nav class="bottomnav" id="bottomnav" aria-label="Primary">
+  <button class="navitem" data-nav="home" aria-current="page">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Home</span>
+  </button>
+  <button class="navitem" data-nav="kingdom">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Evangelist</span>
+  </button>
+  <button class="navitem" data-nav="detail">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.8 5.2 9 4.5 7 4.5c-1.5 0-2.9.4-4 1V19c1.1-.6 2.5-1 4-1 2 0 3.8.7 5 2 1.2-1.3 3-2 5-2 1.5 0 2.9.4 4 1V5.5c-1.1-.6-2.5-1-4-1-2 0-3.8.7-5 2z"/><path d="M12 6.5V20"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Reflect</span>
+  </button>
+  <button class="navitem" data-nav="pray">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Pray</span>
+  </button>
+  <button class="navitem" data-nav="connect">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3 2.9-5 5.5-5s4.9 2 5.5 5"/><circle cx="16.5" cy="9.5" r="2.4"/><path d="M16.5 14.5c2.2 0 4 1.7 4.5 4.2"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Connect</span>
+  </button>
+</nav>
+
+<script>
+/* =========================================================================
+   SAMPLE DATA — everything below is invented demo content, not product data.
+   NOTE / OPEN PRODUCT QUESTION: `devotional.daysThisWeek` (the "6/7" streak)
+   and the "Mark as read" action imply per-day devotional completion
+   tracking. The production backend tracks daily prayer counts and a prayer
+   streak, but does NOT track devotional completion today. This prototype
+   fakes it here so the Home read-out can render as designed.
+   ========================================================================= */
+const SAMPLE_DATA = {
+  devotional: {
+    title: "The peace that guards your heart",
+    passage: "Philippians 4:6-7",
+    minutes: 8,
+    daysThisWeek: 6,   // <- not tracked by the real backend (see note above)
+    weekLength: 7,
+    markedRead: false, // <- not tracked by the real backend (see note above)
+    discussingToday: 9
+  },
+  prayers: {
+    weekTotal: 2347,
+    prayedToday: 3,
+    dailyGoal: 5,
+    requests: { sarah: 14, david: 8, grace: 5 } // "praying" counts
+  },
+  invites: 4
+};
+
+/* ---------------- screen router ---------------- */
+const SCREENS = ['home', 'detail', 'kingdom', 'connect', 'pray', 'settings'];
+const NAV_SCREENS = { home: 'home', detail: 'detail', pray: 'pray', connect: 'connect' };
+const nav = document.getElementById('bottomnav');
+const scrollMemory = {};
+let current = 'home';
+
+function show(id, { push = true } = {}) {
+  if (!SCREENS.includes(id) || id === current) return;
+  scrollMemory[current] = window.scrollY;
+  document.getElementById('screen-' + current).classList.remove('active');
+  const next = document.getElementById('screen-' + id);
+  next.classList.add('active');
+  document.body.dataset.screen = id;
+
+  // bottom nav: hidden on Kingdom Scrolling and Settings
+  const hasNav = id in NAV_SCREENS;
+  nav.hidden = !hasNav;
+  if (hasNav) {
+    nav.querySelectorAll('.navitem').forEach(btn => {
+      if (btn.dataset.nav === id) btn.setAttribute('aria-current', 'page');
+      else btn.removeAttribute('aria-current');
+    });
+  }
+
+  current = id;
+  window.scrollTo(0, scrollMemory[id] || 0);
+  next.focus({ preventScroll: true });
+  if (push) history.pushState({ screen: id }, '', location.pathname + location.search);
+}
+
+window.addEventListener('popstate', e => {
+  show((e.state && e.state.screen) || 'home', { push: false });
+});
+history.replaceState({ screen: 'home' }, '', location.pathname + location.search);
+
+document.querySelectorAll('[data-open]').forEach(el =>
+  el.addEventListener('click', () => show(el.dataset.open)));
+document.querySelectorAll('[data-back]').forEach(el =>
+  el.addEventListener('click', () => history.back()));
+document.querySelectorAll('.navitem').forEach(el =>
+  el.addEventListener('click', () => show(el.dataset.nav)));
+
+/* ---------------- bindings from SAMPLE_DATA ---------------- */
+const fmt = n => n.toLocaleString('en-US');
+document.querySelectorAll('[data-bind="prayersWeek"]').forEach(el =>
+  el.textContent = fmt(SAMPLE_DATA.prayers.weekTotal));
+document.querySelectorAll('[data-bind="streak"]').forEach(el =>
+  el.textContent = SAMPLE_DATA.devotional.daysThisWeek + '/' + SAMPLE_DATA.devotional.weekLength);
+document.querySelectorAll('[data-bind="invites"]').forEach(el =>
+  el.textContent = SAMPLE_DATA.invites);
+document.querySelectorAll('[data-bind="discussing"]').forEach(el =>
+  el.textContent = SAMPLE_DATA.devotional.discussingToday);
+function renderTodayProgress() {
+  document.querySelectorAll('[data-bind="todayProgress"]').forEach(el =>
+    el.textContent = SAMPLE_DATA.prayers.prayedToday + ' of ' + SAMPLE_DATA.prayers.dailyGoal + ' today');
+}
+renderTodayProgress();
+
+/* ---------------- "I'm praying" toggle ---------------- */
+document.querySelectorAll('.pray-btn').forEach(btn => {
+  const id = btn.dataset.request;
+  const label = btn.querySelector('[data-label]');
+  const count = btn.querySelector('[data-count]');
+  count.textContent = SAMPLE_DATA.prayers.requests[id];
+  btn.addEventListener('click', () => {
+    const active = btn.getAttribute('aria-pressed') === 'true';
+    btn.setAttribute('aria-pressed', String(!active));
+    SAMPLE_DATA.prayers.requests[id] += active ? -1 : 1;
+    SAMPLE_DATA.prayers.prayedToday = Math.max(0,
+      Math.min(SAMPLE_DATA.prayers.dailyGoal, SAMPLE_DATA.prayers.prayedToday + (active ? -1 : 1)));
+    count.textContent = SAMPLE_DATA.prayers.requests[id];
+    label.textContent = active ? "I'm praying" : "Praying";
+    renderTodayProgress();
+  });
+});
+
+/* ---------------- mark as read ---------------- */
+const markBtn = document.querySelector('[data-markread]');
+markBtn.addEventListener('click', () => {
+  SAMPLE_DATA.devotional.markedRead = !SAMPLE_DATA.devotional.markedRead;
+  markBtn.setAttribute('aria-pressed', String(SAMPLE_DATA.devotional.markedRead));
+  markBtn.textContent = SAMPLE_DATA.devotional.markedRead ? 'Marked as read' : 'Mark as read';
+});
+
+/* ---------------- bookmark toggle ---------------- */
+const bmBtn = document.querySelector('[data-bookmark]');
+bmBtn.addEventListener('click', () => {
+  const on = bmBtn.getAttribute('aria-pressed') === 'true';
+  bmBtn.setAttribute('aria-pressed', String(!on));
+  bmBtn.querySelector('path').setAttribute('fill', on ? 'none' : 'currentColor');
+});
+
+/* ---------------- connect filters ---------------- */
+document.querySelectorAll('.filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    btn.setAttribute('aria-pressed', 'true');
+  });
+});
+
+/* ---------------- settings switches ---------------- */
+document.querySelectorAll('.switch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    sw.setAttribute('aria-checked', String(sw.getAttribute('aria-checked') !== 'true'));
+  });
+});
+
+/* ---------------- service worker ---------------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+}
+</script>
+</body>
+</html>

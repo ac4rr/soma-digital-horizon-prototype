@@ -30,8 +30,19 @@
   --video-bg:#07090D;
 
   --header-h:56px;
+  --toolbar-h:48px;
   --nav-h:64px;
   --pad-x:16px;
+
+  /* motion — restrained by design; --settle overshoots only slightly */
+  --ease-out-soft:cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out:cubic-bezier(0.4, 0, 0.2, 1);
+  --settle:cubic-bezier(0.32, 1.12, 0.62, 1);
+  --t-press:80ms;
+  --t-release:240ms;
+  --t-screen:300ms;
+  --t-overlay:360ms;
+  --t-underline:260ms;
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -43,9 +54,8 @@ body{
   font-size:17px;
   font-weight:400;
   line-height:1.65;
-  overflow-x:hidden;
+  overflow:hidden;
 }
-body[data-screen="kingdom"]{background:var(--video-bg)}
 button{
   font:inherit;
   color:inherit;
@@ -54,6 +64,7 @@ button{
   cursor:pointer;
   -webkit-tap-highlight-color:transparent;
 }
+button,[role="switch"],.press-scale,.press-row{touch-action:manipulation}
 :focus-visible{outline:2px solid var(--petrol);outline-offset:2px}
 .on-dark :focus-visible,
 .on-dark:focus-visible{outline-color:#FFFFFF}
@@ -70,16 +81,78 @@ svg{display:block}
 }
 .muted{color:var(--ink-muted)}
 
-/* ============ screens ============ */
-.screen{display:none;min-height:100vh;min-height:100dvh}
-.screen.active{display:block}
-.screen:focus{outline:none}
-#screen-kingdom.active{
-  display:flex;flex-direction:column;
-  height:100vh;height:100dvh;overflow:hidden;
+/* ============ app shell: one screen visible, each owns its scroll ============ */
+#app{position:fixed;inset:0;overflow:hidden}
+.page{
+  position:absolute;inset:0;
+  overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  background:var(--paper);
+  opacity:0;visibility:hidden;transform:translateY(6px);
+  transition:opacity var(--t-screen) var(--ease-out-soft),
+             transform var(--t-screen) var(--ease-out-soft),
+             visibility 0s linear var(--t-screen);
+}
+.page.active{
+  opacity:1;visibility:visible;transform:none;
+  transition:opacity var(--t-screen) var(--ease-out-soft),
+             transform var(--t-screen) var(--ease-out-soft),
+             visibility 0s;
+}
+.page:focus{outline:none}
+.page.is-entering{animation:pageEnter var(--t-screen) var(--ease-out-soft) both}
+/* the screen behind an open overlay */
+.page.active.behind{
+  transform:scale(0.97);opacity:0.7;
+  transition:opacity var(--t-overlay) var(--ease-out-soft),
+             transform var(--t-overlay) var(--ease-out-soft);
+}
+@keyframes pageEnter{
+  from{opacity:0;transform:translateY(-6px)}
+  to{opacity:1;transform:none}
 }
 .has-nav{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px)}
 .pad{padding-inline:var(--pad-x)}
+
+/* ============ content entrance ============ */
+@keyframes riseIn{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:none}
+}
+.stagger-run{
+  animation:riseIn var(--t-screen) var(--ease-out-soft) both;
+  animation-delay:var(--d,0ms);
+  will-change:transform,opacity;
+}
+[data-stagger-solo].stagger-run{animation-duration:320ms}
+
+/* ============ press feedback ============ */
+.press-scale{
+  transition:transform var(--t-release) var(--settle),
+             opacity var(--t-release) var(--settle),
+             background-color 200ms var(--ease-in-out),
+             border-color 200ms var(--ease-in-out),
+             color 200ms var(--ease-in-out);
+}
+.press-scale.is-pressed{
+  transform:scale(0.985);opacity:0.94;
+  transition:transform var(--t-press) var(--ease-out-soft),
+             opacity var(--t-press) var(--ease-out-soft),
+             background-color var(--t-press) var(--ease-in-out),
+             border-color var(--t-press) var(--ease-in-out),
+             color var(--t-press) var(--ease-in-out);
+}
+.press-scale.is-pressed,.press-scale.is-releasing{will-change:transform,opacity}
+/* hairline rows have no fill to scale, so the recessed wash fades instead */
+.press-row{position:relative;isolation:isolate}
+.press-row::before{
+  content:"";position:absolute;inset:0;z-index:-1;
+  background:var(--recessed);opacity:0;pointer-events:none;
+  transition:opacity var(--t-release) var(--ease-out-soft);
+}
+.press-row.is-pressed::before{
+  opacity:1;transition:opacity var(--t-press) var(--ease-out-soft);
+}
 
 /* ============ header — identical on every screen ============ */
 .app-header{
@@ -128,7 +201,6 @@ svg{display:block}
   width:100%;min-height:64px;
   text-align:left;font-size:17px;color:var(--ink);
 }
-.row-link:active{background:var(--recessed)}
 .row-link .grow{flex:1}
 .chev{color:var(--petrol);flex:none}
 
@@ -156,20 +228,26 @@ svg{display:block}
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:2px;color:var(--ink-muted);
 }
+/* kept as a spacer so label positions never move; the sliding indicator paints */
 .navitem .bar{width:44px;height:2px;background:transparent}
 .navitem .navlabel{
   font-size:12px;font-weight:500;letter-spacing:0.02em;
   line-height:1;white-space:nowrap;
 }
 .navitem[aria-current="page"]{color:var(--ink)}
-.navitem[aria-current="page"] .bar{background:var(--petrol)}
+.nav-indicator,.filter-indicator{
+  position:absolute;left:0;top:0;
+  height:2px;background:var(--petrol);
+  pointer-events:none;
+  transition:transform var(--t-underline) var(--ease-out-soft);
+}
+.nav-indicator[data-init="0"],.filter-indicator[data-init="0"]{transition:none}
 
 /* ============ HOME ============ */
 .home-lede{padding-top:56px}
 .home-title{margin-top:12px;max-width:10em}
 .home-meta{margin-top:16px;font-size:17px}
 .home-cta{margin-top:56px}
-.home-cta-wrap{margin-top:0}
 .readouts{
   display:flex;justify-content:space-between;align-items:baseline;
   padding:32px 0;
@@ -180,9 +258,51 @@ svg{display:block}
 .home-hairline{margin-top:40px}
 
 /* ============ DEVOTIONAL DETAIL ============ */
+/* header + toolbar travel together, so the icons stay reachable and can
+   cross-fade from white-over-photo to ink-over-paper as one unit */
+.detail-topbar{position:sticky;top:0;z-index:20;isolation:isolate}
+.detail-topbar::before{
+  content:"";position:absolute;inset:0;z-index:-2;
+  /* the same scrim recipe as the hero, extended up behind the header only */
+  background:linear-gradient(to bottom, rgba(7,9,13,0.72), rgba(7,9,13,0));
+  transition:opacity 200ms var(--ease-in-out);
+}
+.detail-topbar::after{
+  content:"";position:absolute;inset:0;z-index:-1;
+  background:var(--paper);opacity:0;
+  transition:opacity 200ms var(--ease-in-out);
+}
+.detail-topbar.is-solid::before{opacity:0}
+.detail-topbar.is-solid::after{opacity:1}
+.detail-topbar .app-header{position:static;background:transparent}
+/* keeps the press transform alive alongside the colour cross-fade */
+.detail-topbar .wordmark,
+.detail-topbar .icon-btn{
+  color:#FFFFFF;
+  transition:color 200ms var(--ease-in-out),
+             transform var(--t-release) var(--settle),
+             opacity var(--t-release) var(--settle);
+}
+.detail-topbar .icon-btn.is-pressed{
+  transition:color 200ms var(--ease-in-out),
+             transform var(--t-press) var(--ease-out-soft),
+             opacity var(--t-press) var(--ease-out-soft);
+}
+.detail-topbar.is-solid .wordmark,
+.detail-topbar.is-solid .icon-btn{color:var(--ink)}
+.detail-toolbar{
+  height:var(--toolbar-h);padding:4px 6px 0;
+  display:flex;align-items:center;
+}
+.detail-toolbar .grow{flex:1}
+.icon-btn{
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ink);
+}
 .detail-hero{
   position:relative;
-  margin-top:calc(-1 * (var(--header-h) + env(safe-area-inset-top)));
+  margin-top:calc(-1 * (var(--header-h) + var(--toolbar-h) + env(safe-area-inset-top)));
   height:45vh;height:45svh;
   background:var(--recessed);
 }
@@ -198,17 +318,6 @@ svg{display:block}
   padding:0 var(--pad-x) 20px;
 }
 .detail-hero h1{color:#FFFFFF}
-.detail-toolbar{
-  position:absolute;left:6px;right:6px;
-  top:calc(var(--header-h) + env(safe-area-inset-top) + 4px);
-  display:flex;align-items:center;
-}
-.icon-btn{
-  width:44px;height:44px;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--ink);
-}
-.detail-toolbar .grow{flex:1}
 .scripture{
   position:relative;
   margin-top:40px;
@@ -283,6 +392,7 @@ svg{display:block}
   color:var(--petrol);
 }
 .filters{
+  position:relative;
   display:flex;gap:32px;
   margin-top:20px;
   margin-right:calc(-1 * var(--pad-x));
@@ -298,8 +408,9 @@ svg{display:block}
   padding:6px 0 10px;
   border-bottom:2px solid transparent;
 }
-.filter[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--petrol)}
+.filter[aria-pressed="true"]{color:var(--ink)}
 .filter:last-child{margin-right:var(--pad-x)}
+.filter-indicator{transform-origin:left center;width:1px}
 .thread{padding:20px 0;text-align:left;width:100%}
 .thread-top{display:flex;align-items:center;gap:10px}
 .thread .sq-avatar{width:24px;height:24px;font-size:9px}
@@ -346,6 +457,55 @@ svg{display:block}
   color:var(--ink-muted);
 }
 
+/* ============ EVANGELIST ============ */
+.evang-lede{padding-top:28px}
+.evang-count{margin-top:4px}
+.evang-sub{margin-top:12px;color:var(--ink-muted)}
+.progress-track{height:2px;background:var(--hairline);margin-top:28px}
+.progress-fill{height:2px;background:var(--petrol)}
+.evang-hairline{margin-top:32px}
+.invite-row{
+  display:flex;align-items:center;gap:12px;
+  min-height:76px;
+}
+.invite-url{flex:1;color:var(--ink-muted);font-size:17px}
+.copy-btn{
+  flex:none;height:44px;padding:0 18px;
+  background:var(--petrol);color:#FFFFFF;border-radius:4px;
+  font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+}
+.copy-btn:active{background:var(--petrol-pressed)}
+.evang-row{
+  display:flex;align-items:center;gap:12px;
+  width:100%;min-height:64px;text-align:left;
+}
+.evang-row .sq-avatar{width:32px;height:32px;font-size:11px}
+.evang-name{flex:1;font-size:17px;color:var(--ink)}
+.status-joined{color:var(--signal)}
+.status-invited{color:var(--ink-muted)}
+.lb-row{
+  position:relative;
+  display:flex;align-items:center;gap:12px;
+  width:100%;min-height:56px;text-align:left;
+}
+.lb-rank{width:18px;color:var(--ink-muted);flex:none}
+.lb-row .sq-avatar{width:24px;height:24px;font-size:9px}
+.lb-name{flex:1;font-size:17px;color:var(--ink)}
+.lb-count{color:var(--ink);font-size:17px}
+.lb-row.is-you{padding-left:14px}
+.lb-row.is-you::after{
+  content:"";position:absolute;left:0;top:8px;bottom:8px;
+  width:2px;background:var(--petrol);
+}
+
+/* ============ REFLECT ============ */
+.reflect-row{
+  display:flex;align-items:center;gap:12px;
+  width:100%;min-height:84px;text-align:left;
+}
+.reflect-main{flex:1}
+.reflect-meta{margin-top:6px;color:var(--ink-muted);display:block}
+
 /* ============ SETTINGS ============ */
 .settings-titlebar{
   display:flex;align-items:center;gap:4px;
@@ -371,7 +531,6 @@ svg{display:block}
   width:100%;min-height:56px;text-align:left;
   font-size:17px;color:var(--ink);
 }
-.setrow:active{background:var(--recessed)}
 .setrow .grow{flex:1}
 .setrow .value{color:var(--ink-muted)}
 .switch{
@@ -379,14 +538,26 @@ svg{display:block}
   background:var(--recessed);
   border:1px solid var(--hairline);
   position:relative;
-  transition:background 0.12s ease;
+}
+.switch.press-scale{
+  transition:transform var(--t-release) var(--settle),
+             opacity var(--t-release) var(--settle),
+             background-color 160ms var(--ease-in-out),
+             border-color 160ms var(--ease-in-out);
+}
+.switch.press-scale.is-pressed{
+  transition:transform var(--t-press) var(--ease-out-soft),
+             opacity var(--t-press) var(--ease-out-soft),
+             background-color 160ms var(--ease-in-out),
+             border-color 160ms var(--ease-in-out);
 }
 .switch .knob{
   position:absolute;top:3px;left:3px;
   width:20px;height:20px;
   background:var(--paper);
   border:1px solid var(--hairline);
-  transition:transform 0.12s ease;
+  transition:transform var(--t-release) var(--settle),
+             border-color 160ms var(--ease-in-out);
 }
 .switch[aria-checked="true"]{background:var(--petrol);border-color:var(--petrol)}
 .switch[aria-checked="true"] .knob{transform:translateX(20px);border-color:var(--petrol)}
@@ -398,34 +569,93 @@ svg{display:block}
   font-size:17px;font-weight:500;
   text-align:center;
 }
-.signout:active{background:var(--recessed)}
 .settings-bottom-pad{height:calc(env(safe-area-inset-bottom) + 24px)}
 
+/* ============ overlays: Settings and Kingdom Scrolling ============ */
+.overlay{
+  position:fixed;inset:0;z-index:40;
+  visibility:hidden;transform:translateY(100%);
+  transition:transform var(--t-overlay) var(--ease-out-soft),
+             visibility 0s linear var(--t-overlay);
+}
+.overlay.open{
+  visibility:visible;transform:translateY(0);
+  transition:transform var(--t-overlay) var(--ease-out-soft),
+             visibility 0s;
+}
+#screen-settings{
+  background:var(--paper);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+#screen-kingdom{
+  background:var(--video-bg);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+
+/* ============ toast ============ */
+.toast-layer{
+  position:fixed;left:0;right:0;z-index:60;
+  bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);
+  display:flex;justify-content:center;
+  pointer-events:none;
+}
+.toast{
+  background:var(--ink);color:#FFFFFF;
+  padding:12px 20px;
+  font-size:14px;font-weight:500;
+}
+
+/* ============ reduced motion: no transforms, no slides, no stagger ============ */
 @media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{transition:none !important;animation:none !important;scroll-behavior:auto !important}
+  *,*::before,*::after{
+    animation-duration:1ms !important;
+    animation-delay:0ms !important;
+    animation-iteration-count:1 !important;
+    scroll-behavior:auto !important;
+  }
+  .press-scale,.press-scale.is-pressed{
+    transform:none !important;
+    transition:opacity 120ms linear !important;
+  }
+  .press-row::before,.press-row.is-pressed::before{transition:opacity 120ms linear !important}
+  .page{
+    transform:none !important;
+    transition:opacity 120ms linear, visibility 0s linear 120ms !important;
+  }
+  .page.active{transition:opacity 120ms linear, visibility 0s !important}
+  .page.active.behind{transform:none !important;opacity:0.7}
+  .nav-indicator,.filter-indicator{transition:none !important}
+  .overlay{
+    transform:none !important;opacity:0;
+    transition:opacity 120ms linear, visibility 0s linear 120ms !important;
+  }
+  .overlay.open{opacity:1;transition:opacity 120ms linear, visibility 0s !important}
+  .switch .knob{transition:none !important}
+  .detail-topbar::before,.detail-topbar::after,
+  .detail-topbar .wordmark,.detail-topbar .icon-btn{transition:none !important}
 }
 </style>
 </head>
-<body data-screen="home">
-<main id="app">
+<body data-screen="home" data-overlay="">
+<div id="app">
 
 <!-- ================= HOME ================= -->
-<section class="screen has-nav active" id="screen-home" aria-label="Home" tabindex="-1">
+<section class="page has-nav active" id="screen-home" aria-label="Home" tabindex="-1">
   <header class="app-header">
     <span class="wordmark">Soma Digital</span>
     <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
   </header>
   <div class="pad">
     <div class="home-lede">
-      <span class="caption muted">Today, 19 August</span>
-      <h1 class="display home-title">The peace that guards your heart</h1>
-      <p class="muted home-meta">Philippians 4:6-7 · 8 minutes</p>
+      <span class="caption muted" data-stagger-item>Today, 19 August</span>
+      <h1 class="display home-title" data-stagger-solo>The peace that guards your heart</h1>
+      <p class="muted home-meta" data-stagger-item>Philippians 4:6-7 · 8 minutes</p>
     </div>
-    <div class="home-cta">
+    <div class="home-cta" data-stagger-item>
       <button class="btn-primary" data-open="detail">Begin reading</button>
     </div>
     <hr class="hairline home-hairline">
-    <div class="readouts">
+    <div class="readouts" data-stagger-item>
       <div class="readout">
         <div class="readout-num" data-bind="streak">6/7</div>
         <span class="caption muted">Days this week</span>
@@ -440,12 +670,12 @@ svg{display:block}
       </div>
     </div>
     <hr class="hairline">
-    <button class="row-link" data-open="kingdom">
+    <button class="row-link" data-open="kingdom" data-stagger-item>
       <span class="grow">Watch today's short · Desiring God</span>
       <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
     <hr class="hairline">
-    <button class="row-link" data-open="connect">
+    <button class="row-link" data-open="connect" data-stagger-item>
       <span class="grow">Ruth started a conversation · 12 replies</span>
       <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
     </button>
@@ -453,17 +683,57 @@ svg{display:block}
   </div>
 </section>
 
-<!-- ================= DEVOTIONAL DETAIL ================= -->
-<section class="screen has-nav" id="screen-detail" aria-label="Devotional detail" tabindex="-1">
+<!-- ================= EVANGELIST ================= -->
+<section class="page has-nav" id="screen-evangelist" aria-label="Evangelist" tabindex="-1">
   <header class="app-header">
     <span class="wordmark">Soma Digital</span>
     <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
   </header>
-  <div class="detail-hero" role="img" aria-label="Devotional artwork placeholder">
-    <svg class="ph-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-11 11"/></svg>
-    <div class="scrim">
-      <h1 class="headline">The peace that guards your heart</h1>
+  <div class="pad">
+    <div class="screen-title-row" data-stagger-item>
+      <h1 class="headline">Evangelist</h1>
     </div>
+    <div class="evang-lede" data-stagger-item>
+      <div class="display evang-count" data-bind="inviteProgress">4 of 5</div>
+      <p class="evang-sub">invites accepted toward your next free month</p>
+    </div>
+    <div class="progress-track" data-stagger-item role="img" aria-label="4 of 5 invites accepted">
+      <div class="progress-fill" data-bind="inviteFill"></div>
+    </div>
+    <hr class="hairline evang-hairline">
+    <div class="invite-row" data-stagger-item>
+      <span class="invite-url" data-bind="inviteLink">soma.digital/i/acar</span>
+      <button class="copy-btn" data-copy aria-label="Copy your invite link">Copy link</button>
+    </div>
+    <hr class="hairline">
+    <span class="caption group-caption">Your invites</span>
+    <div id="evang-invites" data-stagger-item></div>
+    <hr class="hairline">
+    <span class="caption group-caption">This month</span>
+    <div id="evang-leaderboard" data-stagger-item></div>
+  </div>
+</section>
+
+<!-- ================= REFLECT (devotional list) ================= -->
+<section class="page has-nav" id="screen-reflect" aria-label="Reflect" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
+  </header>
+  <div class="pad">
+    <div class="screen-title-row" data-stagger-item>
+      <h1 class="headline">Reflect</h1>
+    </div>
+    <div id="reflect-list" data-stagger-item></div>
+  </div>
+</section>
+
+<!-- ================= DEVOTIONAL DETAIL ================= -->
+<section class="page has-nav" id="screen-detail" aria-label="Devotional detail" tabindex="-1">
+  <div class="detail-topbar">
+    <header class="app-header">
+      <span class="wordmark">Soma Digital</span>
+    </header>
     <div class="detail-toolbar">
       <button class="icon-btn" data-back aria-label="Back">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
@@ -477,9 +747,15 @@ svg{display:block}
       </button>
     </div>
   </div>
+  <div class="detail-hero" role="img" aria-label="Devotional artwork placeholder">
+    <svg class="ph-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-11 11"/></svg>
+    <div class="scrim">
+      <h1 class="headline" data-bind="detailTitle">The peace that guards your heart</h1>
+    </div>
+  </div>
   <div class="pad">
     <blockquote class="scripture subhead">"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus."</blockquote>
-    <span class="caption muted scripture-ref">Philippians 4:6-7</span>
+    <span class="caption muted scripture-ref" data-bind="detailRef">Philippians 4:6-7</span>
 
     <div class="devo-section">
       <span class="caption muted">Reflection</span>
@@ -507,8 +783,200 @@ svg{display:block}
   </div>
 </section>
 
-<!-- ================= KINGDOM SCROLLING ================= -->
-<section class="screen" id="screen-kingdom" aria-label="Kingdom Scrolling" tabindex="-1">
+<!-- ================= PRAY ================= -->
+<section class="page has-nav" id="screen-pray" aria-label="Pray" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
+  </header>
+  <div class="pad">
+    <div class="screen-title-row" data-stagger-item>
+      <h1 class="headline">Pray</h1>
+      <button class="plus-btn" aria-label="Add a prayer request">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="pray-summary" data-stagger-item>
+      <span class="headline" data-bind="prayersWeek">2,347</span>
+      <span class="label">prayers this week</span>
+      <span class="right" data-bind="todayProgress">3 of 5 today</span>
+    </div>
+    <hr class="hairline">
+
+    <article class="request" data-stagger-item>
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">SJ</span>
+        <span class="request-name">Sarah J.</span>
+        <span class="caption request-time">2h ago</span>
+      </div>
+      <p class="body request-body">My mother is going in for surgery tomorrow morning. Praying for steady hands for the surgeons and peace for our family during the wait.</p>
+      <button class="pray-btn" data-request="sarah" aria-pressed="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+        <span data-label>I'm praying</span>
+        <span aria-hidden="true">·</span>
+        <span><span data-count>14</span> praying</span>
+      </button>
+    </article>
+    <hr class="hairline">
+    <article class="request" data-stagger-item>
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">DM</span>
+        <span class="request-name">David M.</span>
+        <span class="caption request-time">5h ago</span>
+      </div>
+      <p class="body request-body">Navigating a major career transition right now. Seeking clarity and wisdom for the next steps as I consider a few different paths.</p>
+      <button class="pray-btn" data-request="david" aria-pressed="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+        <span data-label>Praying</span>
+        <span aria-hidden="true">·</span>
+        <span><span data-count>8</span> praying</span>
+      </button>
+    </article>
+    <hr class="hairline">
+    <article class="request" data-stagger-item>
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">GO</span>
+        <span class="request-name">Grace O.</span>
+        <span class="caption request-time">8h ago</span>
+      </div>
+      <p class="body request-body">Starting a new semester far from home. Asking for good friendships and the courage to visit a local church this Sunday.</p>
+      <button class="pray-btn" data-request="grace" aria-pressed="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+        <span data-label>I'm praying</span>
+        <span aria-hidden="true">·</span>
+        <span><span data-count>5</span> praying</span>
+      </button>
+    </article>
+    <hr class="hairline">
+    <article class="request" data-stagger-item>
+      <div class="request-top">
+        <span class="sq-avatar" aria-hidden="true">MT</span>
+        <span class="request-name">Marcus T.</span>
+        <span class="caption answered-flag">Answered</span>
+        <span class="caption request-time">Yesterday</span>
+      </div>
+      <p class="body request-body">The biopsy came back completely clear!</p>
+      <p class="body pray-quote">"Waiting on test results this week, feeling incredibly anxious."</p>
+    </article>
+  </div>
+</section>
+
+<!-- ================= CONNECT ================= -->
+<section class="page has-nav" id="screen-connect" aria-label="Connect" tabindex="-1">
+  <header class="app-header">
+    <span class="wordmark">Soma Digital</span>
+    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
+  </header>
+  <div class="pad">
+    <div class="screen-title-row" data-stagger-item>
+      <h1 class="headline">Connect</h1>
+      <button class="plus-btn" aria-label="Start a conversation">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="filters" role="group" aria-label="Filter conversations" data-stagger-item>
+      <button class="filter" aria-pressed="false">Daily life</button>
+      <button class="filter" aria-pressed="true">Scripture</button>
+      <button class="filter" aria-pressed="false">Doubt</button>
+      <button class="filter" aria-pressed="false">Prayer</button>
+      <span class="filter-indicator" data-init="0" aria-hidden="true"></span>
+    </div>
+
+    <div id="thread-list" data-stagger-item>
+      <article class="thread">
+        <div class="thread-top">
+          <span class="sq-avatar" aria-hidden="true">SJ</span>
+          <span class="caption thread-author">Sarah J.</span>
+          <span class="caption thread-time">2 hours ago</span>
+        </div>
+        <span class="caption thread-pinned">Pinned</span>
+        <h2 class="subhead thread-title">Understanding the Sermon on the Mount</h2>
+        <p class="body thread-preview">How does Matthew 5-7 work at the office?</p>
+        <span class="caption thread-replies">42 replies</span>
+      </article>
+      <hr class="hairline">
+      <article class="thread">
+        <div class="thread-top">
+          <span class="sq-avatar" aria-hidden="true">CT</span>
+          <span class="caption thread-author">Community Team</span>
+          <span class="caption thread-mod">Moderator</span>
+          <span class="caption thread-time">5 hours ago</span>
+        </div>
+        <h2 class="subhead thread-title">Weekly reading plan discussion</h2>
+        <p class="body thread-preview">Share your reflections on Romans 8 here.</p>
+        <span class="caption thread-replies">128 replies</span>
+      </article>
+      <hr class="hairline">
+      <article class="thread">
+        <div class="thread-top">
+          <span class="sq-avatar" aria-hidden="true">MT</span>
+          <span class="caption thread-author">Marcus T.</span>
+          <span class="caption thread-time">Yesterday</span>
+        </div>
+        <h2 class="subhead thread-title">Context for Psalms of Lament</h2>
+        <p class="body thread-preview">Looking for context on Psalms of lament.</p>
+        <span class="caption thread-replies">15 replies</span>
+      </article>
+      <hr class="hairline">
+      <article class="thread">
+        <div class="thread-top">
+          <span class="sq-avatar" aria-hidden="true">ER</span>
+          <span class="caption thread-author">Elena R.</span>
+          <span class="caption thread-time">2 days ago</span>
+        </div>
+        <h2 class="subhead thread-title">Reconciling science and creation narratives</h2>
+        <p class="body thread-preview">Books on reading Genesis in context?</p>
+        <span class="caption thread-replies">56 replies</span>
+      </article>
+      <hr class="hairline">
+      <article class="thread">
+        <div class="thread-top">
+          <span class="sq-avatar" aria-hidden="true">DK</span>
+          <span class="caption thread-author">David K.</span>
+          <span class="caption thread-time">5 days ago</span>
+        </div>
+        <h2 class="subhead thread-title">Translations: ESV vs NRSV for study</h2>
+        <p class="body thread-preview">What separates the ESV from the NRSV?</p>
+        <span class="caption thread-replies">89 replies</span>
+      </article>
+    </div>
+  </div>
+</section>
+
+</div><!-- /#app -->
+
+<!-- one bottom navigation, identical everywhere it appears -->
+<nav class="bottomnav" id="bottomnav" aria-label="Primary">
+  <span class="nav-indicator" data-init="0" aria-hidden="true"></span>
+  <button class="navitem" data-nav="home" aria-current="page">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Home</span>
+  </button>
+  <button class="navitem" data-nav="evangelist">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Evangelist</span>
+  </button>
+  <button class="navitem" data-nav="reflect">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.8 5.2 9 4.5 7 4.5c-1.5 0-2.9.4-4 1V19c1.1-.6 2.5-1 4-1 2 0 3.8.7 5 2 1.2-1.3 3-2 5-2 1.5 0 2.9.4 4 1V5.5c-1.1-.6-2.5-1-4-1-2 0-3.8.7-5 2z"/><path d="M12 6.5V20"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Reflect</span>
+  </button>
+  <button class="navitem" data-nav="pray">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Pray</span>
+  </button>
+  <button class="navitem" data-nav="connect">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3 2.9-5 5.5-5s4.9 2 5.5 5"/><circle cx="16.5" cy="9.5" r="2.4"/><path d="M16.5 14.5c2.2 0 4 1.7 4.5 4.2"/></svg>
+    <span class="bar"></span>
+    <span class="navlabel">Connect</span>
+  </button>
+</nav>
+
+<!-- ================= KINGDOM SCROLLING (overlay) ================= -->
+<section class="overlay" id="screen-kingdom" aria-label="Kingdom Scrolling" tabindex="-1">
   <header class="app-header app-header--video on-dark">
     <span class="wordmark">Soma Digital</span>
     <button class="header-close" data-back aria-label="Close Kingdom Scrolling">
@@ -569,171 +1037,14 @@ svg{display:block}
   </div>
 </section>
 
-<!-- ================= CONNECT ================= -->
-<section class="screen has-nav" id="screen-connect" aria-label="Connect" tabindex="-1">
-  <header class="app-header">
-    <span class="wordmark">Soma Digital</span>
-    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
-  </header>
-  <div class="pad">
-    <div class="screen-title-row">
-      <h1 class="headline">Connect</h1>
-      <button class="plus-btn" aria-label="Start a conversation">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-    </div>
-    <div class="filters" role="group" aria-label="Filter conversations">
-      <button class="filter" aria-pressed="false">Daily life</button>
-      <button class="filter" aria-pressed="true">Scripture</button>
-      <button class="filter" aria-pressed="false">Doubt</button>
-      <button class="filter" aria-pressed="false">Prayer</button>
-    </div>
-
-    <article class="thread">
-      <div class="thread-top">
-        <span class="sq-avatar" aria-hidden="true">SJ</span>
-        <span class="caption thread-author">Sarah J.</span>
-        <span class="caption thread-time">2 hours ago</span>
-      </div>
-      <span class="caption thread-pinned">Pinned</span>
-      <h2 class="subhead thread-title">Understanding the Sermon on the Mount</h2>
-      <p class="body thread-preview">How does Matthew 5-7 work at the office?</p>
-      <span class="caption thread-replies">42 replies</span>
-    </article>
-    <hr class="hairline">
-    <article class="thread">
-      <div class="thread-top">
-        <span class="sq-avatar" aria-hidden="true">CT</span>
-        <span class="caption thread-author">Community Team</span>
-        <span class="caption thread-mod">Moderator</span>
-        <span class="caption thread-time">5 hours ago</span>
-      </div>
-      <h2 class="subhead thread-title">Weekly reading plan discussion</h2>
-      <p class="body thread-preview">Share your reflections on Romans 8 here.</p>
-      <span class="caption thread-replies">128 replies</span>
-    </article>
-    <hr class="hairline">
-    <article class="thread">
-      <div class="thread-top">
-        <span class="sq-avatar" aria-hidden="true">MT</span>
-        <span class="caption thread-author">Marcus T.</span>
-        <span class="caption thread-time">Yesterday</span>
-      </div>
-      <h2 class="subhead thread-title">Context for Psalms of Lament</h2>
-      <p class="body thread-preview">Looking for context on Psalms of lament.</p>
-      <span class="caption thread-replies">15 replies</span>
-    </article>
-    <hr class="hairline">
-    <article class="thread">
-      <div class="thread-top">
-        <span class="sq-avatar" aria-hidden="true">ER</span>
-        <span class="caption thread-author">Elena R.</span>
-        <span class="caption thread-time">2 days ago</span>
-      </div>
-      <h2 class="subhead thread-title">Reconciling science and creation narratives</h2>
-      <p class="body thread-preview">Books on reading Genesis in context?</p>
-      <span class="caption thread-replies">56 replies</span>
-    </article>
-    <hr class="hairline">
-    <article class="thread">
-      <div class="thread-top">
-        <span class="sq-avatar" aria-hidden="true">DK</span>
-        <span class="caption thread-author">David K.</span>
-        <span class="caption thread-time">5 days ago</span>
-      </div>
-      <h2 class="subhead thread-title">Translations: ESV vs NRSV for study</h2>
-      <p class="body thread-preview">What separates the ESV from the NRSV?</p>
-      <span class="caption thread-replies">89 replies</span>
-    </article>
-  </div>
-</section>
-
-<!-- ================= PRAY ================= -->
-<section class="screen has-nav" id="screen-pray" aria-label="Pray" tabindex="-1">
-  <header class="app-header">
-    <span class="wordmark">Soma Digital</span>
-    <button class="avatar-btn" data-open="settings" aria-label="Open settings">AY</button>
-  </header>
-  <div class="pad">
-    <div class="screen-title-row">
-      <h1 class="headline">Pray</h1>
-      <button class="plus-btn" aria-label="Add a prayer request">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-    </div>
-    <div class="pray-summary">
-      <span class="headline" data-bind="prayersWeek">2,347</span>
-      <span class="label">prayers this week</span>
-      <span class="right" data-bind="todayProgress">3 of 5 today</span>
-    </div>
-    <hr class="hairline">
-
-    <article class="request">
-      <div class="request-top">
-        <span class="sq-avatar" aria-hidden="true">SJ</span>
-        <span class="request-name">Sarah J.</span>
-        <span class="caption request-time">2h ago</span>
-      </div>
-      <p class="body request-body">My mother is going in for surgery tomorrow morning. Praying for steady hands for the surgeons and peace for our family during the wait.</p>
-      <button class="pray-btn" data-request="sarah" aria-pressed="false">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
-        <span data-label>I'm praying</span>
-        <span aria-hidden="true">·</span>
-        <span><span data-count>14</span> praying</span>
-      </button>
-    </article>
-    <hr class="hairline">
-    <article class="request">
-      <div class="request-top">
-        <span class="sq-avatar" aria-hidden="true">DM</span>
-        <span class="request-name">David M.</span>
-        <span class="caption request-time">5h ago</span>
-      </div>
-      <p class="body request-body">Navigating a major career transition right now. Seeking clarity and wisdom for the next steps as I consider a few different paths.</p>
-      <button class="pray-btn" data-request="david" aria-pressed="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
-        <span data-label>Praying</span>
-        <span aria-hidden="true">·</span>
-        <span><span data-count>8</span> praying</span>
-      </button>
-    </article>
-    <hr class="hairline">
-    <article class="request">
-      <div class="request-top">
-        <span class="sq-avatar" aria-hidden="true">GO</span>
-        <span class="request-name">Grace O.</span>
-        <span class="caption request-time">8h ago</span>
-      </div>
-      <p class="body request-body">Starting a new semester far from home. Asking for good friendships and the courage to visit a local church this Sunday.</p>
-      <button class="pray-btn" data-request="grace" aria-pressed="false">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
-        <span data-label>I'm praying</span>
-        <span aria-hidden="true">·</span>
-        <span><span data-count>5</span> praying</span>
-      </button>
-    </article>
-    <hr class="hairline">
-    <article class="request">
-      <div class="request-top">
-        <span class="sq-avatar" aria-hidden="true">MT</span>
-        <span class="request-name">Marcus T.</span>
-        <span class="caption answered-flag">Answered</span>
-        <span class="caption request-time">Yesterday</span>
-      </div>
-      <p class="body request-body">The biopsy came back completely clear!</p>
-      <p class="body pray-quote">"Waiting on test results this week, feeling incredibly anxious."</p>
-    </article>
-  </div>
-</section>
-
-<!-- ================= SETTINGS ================= -->
-<section class="screen" id="screen-settings" aria-label="Settings" tabindex="-1">
+<!-- ================= SETTINGS (overlay) ================= -->
+<section class="overlay" id="screen-settings" aria-label="Settings" tabindex="-1">
   <header class="app-header">
     <span class="wordmark">Soma Digital</span>
   </header>
   <div class="pad">
     <div class="settings-titlebar">
-      <button class="icon-btn" data-back aria-label="Back">
+      <button class="icon-btn" data-back aria-label="Close settings">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
       <h1 class="display">Settings</h1>
@@ -823,36 +1134,7 @@ svg{display:block}
   </div>
 </section>
 
-</main>
-
-<!-- one bottom navigation, identical everywhere it appears -->
-<nav class="bottomnav" id="bottomnav" aria-label="Primary">
-  <button class="navitem" data-nav="home" aria-current="page">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/></svg>
-    <span class="bar"></span>
-    <span class="navlabel">Home</span>
-  </button>
-  <button class="navitem" data-nav="kingdom">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>
-    <span class="bar"></span>
-    <span class="navlabel">Evangelist</span>
-  </button>
-  <button class="navitem" data-nav="detail">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.8 5.2 9 4.5 7 4.5c-1.5 0-2.9.4-4 1V19c1.1-.6 2.5-1 4-1 2 0 3.8.7 5 2 1.2-1.3 3-2 5-2 1.5 0 2.9.4 4 1V5.5c-1.1-.6-2.5-1-4-1-2 0-3.8.7-5 2z"/><path d="M12 6.5V20"/></svg>
-    <span class="bar"></span>
-    <span class="navlabel">Reflect</span>
-  </button>
-  <button class="navitem" data-nav="pray">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg>
-    <span class="bar"></span>
-    <span class="navlabel">Pray</span>
-  </button>
-  <button class="navitem" data-nav="connect">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3 2.9-5 5.5-5s4.9 2 5.5 5"/><circle cx="16.5" cy="9.5" r="2.4"/><path d="M16.5 14.5c2.2 0 4 1.7 4.5 4.2"/></svg>
-    <span class="bar"></span>
-    <span class="navlabel">Connect</span>
-  </button>
-</nav>
+<div class="toast-layer" id="toasts" role="status" aria-live="polite"></div>
 
 <script>
 /* =========================================================================
@@ -879,51 +1161,299 @@ const SAMPLE_DATA = {
     dailyGoal: 5,
     requests: { sarah: 14, david: 8, grace: 5 } // "praying" counts
   },
-  invites: 4
+  invites: 4,
+  evangelist: {
+    accepted: 4,
+    needed: 5,
+    link: "soma.digital/i/acar",
+    sent: [
+      { name: "Ruth",   initials: "RA", status: "joined"  },
+      { name: "Tomás",  initials: "TF", status: "joined"  },
+      { name: "Priya",  initials: "PN", status: "joined"  },
+      { name: "Emeka",  initials: "EO", status: "joined"  },
+      { name: "Hannah", initials: "HB", status: "invited" }
+    ],
+    leaderboard: [
+      { rank: 1, name: "Grace O.",    initials: "GO", count: 12 },
+      { rank: 2, name: "Marcus T.",   initials: "MT", count: 9  },
+      { rank: 3, name: "Acar Yildiz", initials: "AY", count: 4, you: true },
+      { rank: 4, name: "Sarah J.",    initials: "SJ", count: 3  },
+      { rank: 5, name: "David K.",    initials: "DK", count: 2  }
+    ]
+  },
+  reflectList: [
+    { title: "The peace that guards your heart", ref: "Philippians 4:6-7",  minutes: 8 },
+    { title: "When the well runs dry",           ref: "John 4:7-14",        minutes: 6 },
+    { title: "A patient kind of courage",        ref: "Joshua 1:6-9",       minutes: 7 },
+    { title: "What you do with the waiting",     ref: "Psalm 27:13-14",     minutes: 5 },
+    { title: "The cost of carrying everything",  ref: "Matthew 11:28-30",   minutes: 9 },
+    { title: "Enough for today",                 ref: "Exodus 16:16-20",    minutes: 6 }
+  ]
 };
 
-/* ---------------- screen router ---------------- */
-const SCREENS = ['home', 'detail', 'kingdom', 'connect', 'pray', 'settings'];
-const NAV_SCREENS = { home: 'home', detail: 'detail', pray: 'pray', connect: 'connect' };
+const reduceMotion = () =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const haptic = ms => { if (navigator.vibrate) navigator.vibrate(ms); };
+const CHEVRON = '<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+/* ---------------- render the list-driven screens ---------------- */
+const esc = s => String(s).replace(/[&<>"]/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function renderEvangelist() {
+  const e = SAMPLE_DATA.evangelist;
+  document.querySelector('[data-bind="inviteProgress"]').textContent =
+    e.accepted + ' of ' + e.needed;
+  document.querySelector('[data-bind="inviteFill"]').style.width =
+    (e.accepted / e.needed * 100) + '%';
+  document.querySelector('[data-bind="inviteLink"]').textContent = e.link;
+
+  document.getElementById('evang-invites').innerHTML = e.sent.map((p, i) => `
+    ${i ? '<hr class="hairline">' : ''}
+    <div class="evang-row">
+      <span class="sq-avatar" aria-hidden="true">${esc(p.initials)}</span>
+      <span class="evang-name">${esc(p.name)}</span>
+      <span class="caption ${p.status === 'joined' ? 'status-joined' : 'status-invited'}">${p.status === 'joined' ? 'Joined' : 'Invited'}</span>
+    </div>`).join('');
+
+  document.getElementById('evang-leaderboard').innerHTML = e.leaderboard.map((p, i) => `
+    ${i ? '<hr class="hairline">' : ''}
+    <div class="lb-row${p.you ? ' is-you' : ''}"${p.you ? ' aria-label="Your rank"' : ''}>
+      <span class="caption lb-rank">${p.rank}</span>
+      <span class="sq-avatar" aria-hidden="true">${esc(p.initials)}</span>
+      <span class="lb-name">${esc(p.name)}</span>
+      <span class="lb-count">${p.count}</span>
+    </div>`).join('');
+}
+
+function renderReflect() {
+  document.getElementById('reflect-list').innerHTML =
+    SAMPLE_DATA.reflectList.map((d, i) => `
+      ${i ? '<hr class="hairline">' : ''}
+      <button class="reflect-row" data-open="detail" data-devotional="${i}">
+        <span class="reflect-main">
+          <span class="subhead">${esc(d.title)}</span>
+          <span class="caption reflect-meta">${esc(d.ref)} · ${d.minutes} min</span>
+        </span>
+        ${CHEVRON}
+      </button>`).join('') + '<hr class="hairline">';
+}
+renderEvangelist();
+renderReflect();
+
+/* ---------------- routes ---------------- */
+const ROUTES = {
+  home:       { hash: '#home',                 kind: 'page',    nav: 'home'       },
+  evangelist: { hash: '#evangelist',           kind: 'page',    nav: 'evangelist' },
+  reflect:    { hash: '#reflect',              kind: 'page',    nav: 'reflect'    },
+  detail:     { hash: '#reflect/devotional',   kind: 'page',    nav: 'reflect', parent: 'reflect' },
+  pray:       { hash: '#pray',                 kind: 'page',    nav: 'pray'       },
+  connect:    { hash: '#connect',              kind: 'page',    nav: 'connect'    },
+  settings:   { hash: '#settings',             kind: 'overlay', parent: 'home'    },
+  kingdom:    { hash: '#scrolling',            kind: 'overlay', parent: 'home'    }
+};
 const nav = document.getElementById('bottomnav');
-const scrollMemory = {};
-let current = 'home';
+const navIndicator = nav.querySelector('.nav-indicator');
+let state = { base: 'home', overlay: null };
+let pushes = 0;
+let navHideTimer = null;
 
-function show(id, { push = true } = {}) {
-  if (!SCREENS.includes(id) || id === current) return;
-  scrollMemory[current] = window.scrollY;
-  document.getElementById('screen-' + current).classList.remove('active');
-  const next = document.getElementById('screen-' + id);
-  next.classList.add('active');
-  document.body.dataset.screen = id;
+const pageEl = id => document.getElementById('screen-' + id);
+const hashFor = st => ROUTES[st.overlay || st.base].hash;
 
-  // bottom nav: hidden on Kingdom Scrolling and Settings
-  const hasNav = id in NAV_SCREENS;
-  nav.hidden = !hasNav;
-  if (hasNav) {
-    nav.querySelectorAll('.navitem').forEach(btn => {
-      if (btn.dataset.nav === id) btn.setAttribute('aria-current', 'page');
-      else btn.removeAttribute('aria-current');
-    });
+function stateFromHash(h) {
+  const id = Object.keys(ROUTES).find(k => ROUTES[k].hash === h);
+  if (!id) return { base: 'home', overlay: null };
+  const r = ROUTES[id];
+  return r.kind === 'overlay'
+    ? { base: r.parent, overlay: id }
+    : { base: id, overlay: null };
+}
+
+/* ---------------- entrance stagger ---------------- */
+function runEntrance(page) {
+  if (reduceMotion()) return;
+  const solo = page.querySelector('[data-stagger-solo]');
+  const items = [...page.querySelectorAll('[data-stagger-item]')].slice(0, 8);
+  const offset = solo ? 320 : 0;
+  if (solo) playStagger(solo, 0);
+  items.forEach((el, i) => playStagger(el, offset + i * 24));
+}
+function playStagger(el, delay) {
+  el.classList.remove('stagger-run');
+  void el.offsetWidth;                     // restart the animation
+  el.style.setProperty('--d', delay + 'ms');
+  el.classList.add('stagger-run');
+  el.addEventListener('animationend', () => {
+    el.classList.remove('stagger-run');    // drops will-change too
+    el.style.removeProperty('--d');
+  }, { once: true });
+}
+
+/* ---------------- sliding underlines ---------------- */
+function moveIndicator(indicator, target, container) {
+  if (!target || !container.offsetWidth) return;
+  const c = container.getBoundingClientRect();
+  const t = target.getBoundingClientRect();
+  const x = t.left - c.left + container.scrollLeft;
+  if (indicator.dataset.axis === 'scale') {
+    // sits exactly where the label's 2px bottom border used to paint
+    indicator.style.top = (t.bottom - c.top + container.scrollTop - 2) + 'px';
+    indicator.style.transform = 'translateX(' + x + 'px) scaleX(' + t.width + ')';
+  } else {
+    indicator.style.top = (t.top - c.top) + 'px';
+    indicator.style.width = t.width + 'px';
+    indicator.style.transform = 'translateX(' + x + 'px)';
+  }
+  if (indicator.dataset.init === '0') {
+    void indicator.offsetWidth;
+    indicator.dataset.init = '1';
+  }
+}
+function syncNav() {
+  const navId = ROUTES[state.base].nav;
+  nav.querySelectorAll('.navitem').forEach(btn => {
+    if (btn.dataset.nav === navId) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
+  const item = nav.querySelector('.navitem[data-nav="' + navId + '"]');
+  moveIndicator(navIndicator, item && item.querySelector('.bar'), nav);
+}
+
+/* ---------------- router ---------------- */
+function applyRoute(next, { animate = true } = {}) {
+  const baseChanged = next.base !== state.base;
+  const overlayChanged = next.overlay !== state.overlay;
+  if (!baseChanged && !overlayChanged) return;
+
+  if (baseChanged) {
+    const from = pageEl(state.base);
+    const to = pageEl(next.base);
+    from.classList.remove('active', 'behind');
+    to.classList.add('active');
+    // an article always opens at the top, so the hero and the white
+    // header icons are what you land on
+    if (next.base === 'detail') to.scrollTop = 0;
+    if (animate && !reduceMotion()) {
+      to.classList.add('is-entering');
+      to.addEventListener('animationend',
+        () => to.classList.remove('is-entering'), { once: true });
+    }
+    state.base = next.base;
+    to.focus({ preventScroll: true });
   }
 
-  current = id;
-  window.scrollTo(0, scrollMemory[id] || 0);
-  next.focus({ preventScroll: true });
-  if (push) history.pushState({ screen: id }, '', location.pathname + location.search);
+  if (overlayChanged) {
+    const closing = state.overlay;
+    state.overlay = next.overlay;
+    if (closing) {
+      const el = pageEl(closing);
+      el.classList.remove('open');
+      el.removeAttribute('aria-modal');
+      el.style.transform = '';
+    }
+    clearTimeout(navHideTimer);
+    if (next.overlay) {
+      const el = pageEl(next.overlay);
+      el.classList.add('open');
+      el.setAttribute('aria-modal', 'true');
+      el.focus({ preventScroll: true });
+      // keep the bar visible while the sheet rises over it, then take it
+      // out of the focus order entirely
+      navHideTimer = setTimeout(() => { nav.hidden = true; },
+        reduceMotion() ? 120 : 360);
+    } else {
+      nav.hidden = false;
+    }
+  }
+
+  const basePage = pageEl(state.base);
+  basePage.classList.toggle('behind', !!state.overlay);
+  if (state.overlay) {
+    basePage.setAttribute('inert', '');
+    nav.setAttribute('inert', '');
+  } else {
+    basePage.removeAttribute('inert');
+    nav.removeAttribute('inert');
+  }
+
+  document.body.dataset.screen = state.base;
+  document.body.dataset.overlay = state.overlay || '';
+  syncNav();
+  if (baseChanged && animate) runEntrance(basePage);
+  if (state.base === 'connect') syncFilterIndicator();
+  if (state.base === 'detail') syncDetailHeader();
+}
+
+function navigate(id) {
+  const r = ROUTES[id];
+  if (!r) return;
+  const next = r.kind === 'overlay'
+    ? { base: state.base, overlay: id }
+    : { base: id, overlay: null };
+  if (next.base === state.base && next.overlay === state.overlay) return;
+  history.pushState(next, '', hashFor(next));
+  pushes++;
+  applyRoute(next);
+}
+
+function goBack() {
+  if (pushes > 0) { history.back(); return; }
+  // deep-linked with no in-app history: fall back to the logical parent
+  const here = ROUTES[state.overlay || state.base];
+  const parent = here.parent || 'home';
+  const next = { base: parent, overlay: null };
+  history.replaceState(next, '', hashFor(next));
+  applyRoute(next);
 }
 
 window.addEventListener('popstate', e => {
-  show((e.state && e.state.screen) || 'home', { push: false });
+  pushes = Math.max(0, pushes - 1);
+  applyRoute(e.state && e.state.base ? e.state : stateFromHash(location.hash));
 });
-history.replaceState({ screen: 'home' }, '', location.pathname + location.search);
+window.addEventListener('hashchange', () => {
+  applyRoute(stateFromHash(location.hash));
+});
 
-document.querySelectorAll('[data-open]').forEach(el =>
-  el.addEventListener('click', () => show(el.dataset.open)));
-document.querySelectorAll('[data-back]').forEach(el =>
-  el.addEventListener('click', () => history.back()));
-document.querySelectorAll('.navitem').forEach(el =>
-  el.addEventListener('click', () => show(el.dataset.nav)));
+/* ---------------- wiring ---------------- */
+document.addEventListener('click', e => {
+  const open = e.target.closest('[data-open]');
+  if (open) { navigate(open.dataset.open); return; }
+  const back = e.target.closest('[data-back]');
+  if (back) { haptic(20); goBack(); return; }
+  const item = e.target.closest('.navitem');
+  if (item) { haptic(10); navigate(item.dataset.nav); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && state.overlay) { haptic(20); goBack(); }
+});
+
+/* ---------------- press feedback ---------------- */
+const PRESS_SCALE = '.btn-primary,.navitem,.filter,.switch,.readout,.plus-btn,' +
+  '.icon-btn,.ks-action,.avatar-btn,.header-close,.pray-btn,.copy-btn';
+const PRESS_ROW = '.row-link,.setrow,.signout,.evang-row,.reflect-row,.lb-row';
+document.querySelectorAll(PRESS_SCALE).forEach(el => el.classList.add('press-scale'));
+document.querySelectorAll(PRESS_ROW).forEach(el => el.classList.add('press-row'));
+
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.press-scale,.press-row');
+  if (!el) return;
+  el.classList.remove('is-releasing');
+  el.classList.add('is-pressed');
+}, { passive: true });
+
+function releasePress() {
+  document.querySelectorAll('.is-pressed').forEach(el => {
+    el.classList.remove('is-pressed');
+    el.classList.add('is-releasing');
+    el.addEventListener('transitionend',
+      () => el.classList.remove('is-releasing'), { once: true });
+    // safety net if no transition fires (e.g. reduced motion)
+    setTimeout(() => el.classList.remove('is-releasing'), 400);
+  });
+}
+['pointerup', 'pointercancel', 'pointerleave'].forEach(t =>
+  document.addEventListener(t, releasePress, { passive: true }));
 
 /* ---------------- bindings from SAMPLE_DATA ---------------- */
 const fmt = n => n.toLocaleString('en-US');
@@ -935,27 +1465,50 @@ document.querySelectorAll('[data-bind="invites"]').forEach(el =>
   el.textContent = SAMPLE_DATA.invites);
 document.querySelectorAll('[data-bind="discussing"]').forEach(el =>
   el.textContent = SAMPLE_DATA.devotional.discussingToday);
-function renderTodayProgress() {
-  document.querySelectorAll('[data-bind="todayProgress"]').forEach(el =>
-    el.textContent = SAMPLE_DATA.prayers.prayedToday + ' of ' + SAMPLE_DATA.prayers.dailyGoal + ' today');
+const todayText = () =>
+  SAMPLE_DATA.prayers.prayedToday + ' of ' + SAMPLE_DATA.prayers.dailyGoal + ' today';
+document.querySelectorAll('[data-bind="todayProgress"]').forEach(el =>
+  el.textContent = todayText());
+
+/* The new value lands synchronously and the fade is decorative only — never
+   gate state on an animation finishing, or a throttled tab leaves stale
+   numbers on screen while aria-pressed has already flipped. */
+function crossfadeText(el, next) {
+  next = String(next);
+  if (!el || el.textContent === next) return;
+  el.textContent = next;
+  if (reduceMotion() || !el.animate) return;
+  el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'linear' });
 }
-renderTodayProgress();
 
 /* ---------------- "I'm praying" toggle ---------------- */
 document.querySelectorAll('.pray-btn').forEach(btn => {
   const id = btn.dataset.request;
   const label = btn.querySelector('[data-label]');
   const count = btn.querySelector('[data-count]');
+  const icon = btn.querySelector('svg');
   count.textContent = SAMPLE_DATA.prayers.requests[id];
   btn.addEventListener('click', () => {
     const active = btn.getAttribute('aria-pressed') === 'true';
+    const step = active ? -1 : 1;
     btn.setAttribute('aria-pressed', String(!active));
-    SAMPLE_DATA.prayers.requests[id] += active ? -1 : 1;
+    SAMPLE_DATA.prayers.requests[id] += step;
     SAMPLE_DATA.prayers.prayedToday = Math.max(0,
-      Math.min(SAMPLE_DATA.prayers.dailyGoal, SAMPLE_DATA.prayers.prayedToday + (active ? -1 : 1)));
-    count.textContent = SAMPLE_DATA.prayers.requests[id];
-    label.textContent = active ? "I'm praying" : "Praying";
-    renderTodayProgress();
+      Math.min(SAMPLE_DATA.prayers.dailyGoal, SAMPLE_DATA.prayers.prayedToday + step));
+    SAMPLE_DATA.prayers.weekTotal += step;
+    haptic(10);
+    // row count, weekly total and today's progress all move together
+    crossfadeText(count, SAMPLE_DATA.prayers.requests[id]);
+    crossfadeText(label, active ? "I'm praying" : "Praying");
+    document.querySelectorAll('[data-bind="prayersWeek"]').forEach(el =>
+      crossfadeText(el, fmt(SAMPLE_DATA.prayers.weekTotal)));
+    document.querySelectorAll('[data-bind="todayProgress"]').forEach(el =>
+      crossfadeText(el, todayText()));
+    if (!reduceMotion() && icon.animate) {
+      icon.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.15)' }, { transform: 'scale(1)' }],
+        { duration: 320, easing: 'cubic-bezier(0.32, 1.12, 0.62, 1)' });
+    }
   });
 });
 
@@ -965,6 +1518,7 @@ markBtn.addEventListener('click', () => {
   SAMPLE_DATA.devotional.markedRead = !SAMPLE_DATA.devotional.markedRead;
   markBtn.setAttribute('aria-pressed', String(SAMPLE_DATA.devotional.markedRead));
   markBtn.textContent = SAMPLE_DATA.devotional.markedRead ? 'Marked as read' : 'Mark as read';
+  haptic(10);
 });
 
 /* ---------------- bookmark toggle ---------------- */
@@ -973,13 +1527,37 @@ bmBtn.addEventListener('click', () => {
   const on = bmBtn.getAttribute('aria-pressed') === 'true';
   bmBtn.setAttribute('aria-pressed', String(!on));
   bmBtn.querySelector('path').setAttribute('fill', on ? 'none' : 'currentColor');
+  haptic(10);
+});
+
+/* ---------------- reflect rows pick the devotional ---------------- */
+document.querySelectorAll('.reflect-row').forEach(row => {
+  row.addEventListener('click', () => {
+    const d = SAMPLE_DATA.reflectList[Number(row.dataset.devotional)];
+    if (!d) return;
+    document.querySelector('[data-bind="detailTitle"]').textContent = d.title;
+    document.querySelector('[data-bind="detailRef"]').textContent = d.ref;
+  });
 });
 
 /* ---------------- connect filters ---------------- */
+const filters = document.querySelector('.filters');
+const filterIndicator = filters.querySelector('.filter-indicator');
+filterIndicator.dataset.axis = 'scale';
+const threadList = document.getElementById('thread-list');
+function syncFilterIndicator() {
+  moveIndicator(filterIndicator, filters.querySelector('.filter[aria-pressed="true"]'), filters);
+}
 document.querySelectorAll('.filter').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    if (btn.getAttribute('aria-pressed') === 'true') return;
+    filters.querySelectorAll('.filter').forEach(b => b.setAttribute('aria-pressed', 'false'));
     btn.setAttribute('aria-pressed', 'true');
+    syncFilterIndicator();                       // no history entry for filters
+    if (!reduceMotion() && threadList.animate) {
+      threadList.animate([{ opacity: 1 }, { opacity: 0 }, { opacity: 1 }],
+        { duration: 160, easing: 'linear' });
+    }
   });
 });
 
@@ -987,8 +1565,127 @@ document.querySelectorAll('.filter').forEach(btn => {
 document.querySelectorAll('.switch').forEach(sw => {
   sw.addEventListener('click', () => {
     sw.setAttribute('aria-checked', String(sw.getAttribute('aria-checked') !== 'true'));
+    haptic(10);                                  // no history entry for toggles
   });
 });
+
+/* ---------------- toast ---------------- */
+const toastLayer = document.getElementById('toasts');
+function toast(message) {
+  toastLayer.textContent = '';
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = message;
+  toastLayer.appendChild(el);
+  const done = () => el.remove();
+  if (reduceMotion() || !el.animate) {
+    setTimeout(done, 1800);
+    return;
+  }
+  el.animate([
+    { opacity: 0, transform: 'translateY(12px)' },
+    { opacity: 1, transform: 'none' }
+  ], { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' });
+  setTimeout(() => {
+    el.animate([{ opacity: 1 }, { opacity: 0 }],
+      { duration: 200, easing: 'linear', fill: 'both' }).finished.then(done);
+  }, 1800 + 240);
+}
+document.querySelector('[data-copy]').addEventListener('click', () => {
+  const link = SAMPLE_DATA.evangelist.link;
+  if (navigator.clipboard) navigator.clipboard.writeText('https://' + link).catch(() => {});
+  haptic(10);
+  toast('Link copied');
+});
+
+/* ---------------- devotional detail header cross-fade ---------------- */
+const detailPage = pageEl('detail');
+const detailTopbar = detailPage.querySelector('.detail-topbar');
+const detailHero = detailPage.querySelector('.detail-hero');
+function syncDetailHeader() {
+  const threshold = Math.max(0, detailHero.offsetHeight - detailTopbar.offsetHeight);
+  detailTopbar.classList.toggle('is-solid', detailPage.scrollTop >= threshold);
+}
+detailPage.addEventListener('scroll', syncDetailHeader, { passive: true });
+
+/* ---------------- Settings drag-to-dismiss ---------------- */
+const settingsEl = pageEl('settings');
+const DRAG_ZONE = 120;
+const DRAG_THRESHOLD = 120;
+let drag = null;
+settingsEl.addEventListener('pointerdown', e => {
+  if (state.overlay !== 'settings' || settingsEl.scrollTop > 0) return;
+  if (e.clientY - settingsEl.getBoundingClientRect().top > DRAG_ZONE) return;
+  drag = { id: e.pointerId, startY: e.clientY, y: e.clientY, t: performance.now(), v: 0, active: false };
+});
+settingsEl.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dy = e.clientY - drag.startY;
+  if (!drag.active) {
+    if (dy < -6) { drag = null; return; }        // it's a scroll, not a dismiss
+    if (dy <= 6) return;
+    drag.active = true;
+    try { settingsEl.setPointerCapture(e.pointerId); } catch (err) { /* no live pointer */ }
+    settingsEl.style.transition = 'none';
+    settingsEl.style.willChange = 'transform';
+  }
+  const now = performance.now();
+  const dt = now - drag.t;
+  // only sample velocity over a real time slice, so a burst of events
+  // arriving in the same millisecond can't fake a flick
+  if (dt >= 8) {
+    drag.v = (e.clientY - drag.y) / dt;
+    drag.t = now;
+  }
+  drag.y = e.clientY;
+  if (!reduceMotion()) {
+    settingsEl.style.transform = 'translateY(' + Math.max(0, dy) + 'px)';
+  }
+}, { passive: true });
+
+function endDrag() {
+  if (!drag) return;
+  const { active, v } = drag;
+  const dy = Math.max(0, drag.y - drag.startY);
+  drag = null;
+  if (!active) return;
+  settingsEl.style.willChange = '';
+  if (dy > DRAG_THRESHOLD || v > 0.5) {
+    settingsEl.style.transition = '';
+    settingsEl.style.transform = '';
+    haptic(20);
+    goBack();
+  } else {
+    settingsEl.style.transition = reduceMotion()
+      ? 'none' : 'transform var(--t-release) var(--settle)';
+    settingsEl.style.transform = '';
+    settingsEl.addEventListener('transitionend', () => {
+      settingsEl.style.transition = '';
+    }, { once: true });
+  }
+}
+['pointerup', 'pointercancel'].forEach(t =>
+  settingsEl.addEventListener(t, endDrag, { passive: true }));
+
+/* ---------------- boot ---------------- */
+window.addEventListener('resize', () => { syncNav(); syncFilterIndicator(); });
+
+(function boot() {
+  const initial = stateFromHash(location.hash);
+  history.replaceState(initial, '', hashFor(initial));
+  // Home carries .active in the markup; move it if we deep-linked elsewhere
+  if (initial.base !== 'home') {
+    pageEl('home').classList.remove('active');
+    pageEl(initial.base).classList.add('active');
+  }
+  state = { base: initial.base, overlay: null };
+  document.body.dataset.screen = initial.base;
+  if (initial.overlay) applyRoute(initial, { animate: false });
+  syncNav();
+  syncFilterIndicator();
+  if (initial.base === 'detail') syncDetailHeader();
+  runEntrance(pageEl(initial.base));
+})();
 
 /* ---------------- service worker ---------------- */
 if ('serviceWorker' in navigator) {

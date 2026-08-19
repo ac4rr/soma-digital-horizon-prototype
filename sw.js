@@ -1,7 +1,7 @@
 /* Soma Digital — Horizon prototype service worker.
    Precaches the app shell so the prototype opens offline. */
-const CACHE = 'soma-horizon-v1';
-const FONT_CACHE = 'soma-horizon-fonts-v1';
+const CACHE = 'soma-horizon-v2';
+const FONT_CACHE = 'soma-horizon-fonts-v2';
 
 const SHELL = [
   './',
